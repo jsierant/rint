@@ -87,11 +87,11 @@ public:
     return !(*this < rhs);
   }
   template<auto min, auto max>
-  inline bool operator==(ranged_int<min, max> const& rhs) {
+  inline bool operator==(ranged_int<min, max> const& rhs) const {
     return value == rhs.value;
   }
   template<auto min, auto max>
-  inline bool operator!=(ranged_int<min, max> const& rhs) {
+  inline bool operator!=(ranged_int<min, max> const& rhs) const {
     return !(*this == rhs);
   }
 
