@@ -50,7 +50,42 @@ public:
     verify(val);
   }
 
+  ranged_int() : value(0) { }
+  ~ranged_int() = default;
+
+  ranged_int(ranged_int const&) = default;
+  ranged_int& operator=(ranged_int const&) = default;
+
+  ranged_int(ranged_int&&) = default;
+  ranged_int& operator=(ranged_int&&) = default;
+
+
   value_type operator*() const { return value; }
+
+  template<auto min, auto max>
+  inline bool operator<(ranged_int<min, max> const& rhs) const {
+    return value < rhs.value;
+  }
+  template<auto min, auto max>
+  inline bool operator>(ranged_int<min, max> const& rhs) const {
+    return value > rhs.value;
+  }
+  template<auto min, auto max>
+  inline bool operator<=(ranged_int<min, max> const& rhs) const {
+    return !(*this > rhs);
+  }
+  template<auto min, auto max>
+  inline bool operator>=(ranged_int<min, max> const& rhs) const {
+    return !(*this < rhs);
+  }
+  template<auto min, auto max>
+  inline bool operator==(ranged_int<min, max> const& rhs) {
+    return value == rhs.value;
+  }
+  template<auto min, auto max>
+  inline bool operator!=(ranged_int<min, max> const& rhs) {
+    return !(*this == rhs);
+  }
 
 private:
   template<typename Val>
