@@ -45,6 +45,7 @@ constexpr bool same_sign() {
 
 template<auto min_v, auto max_v>
 class ranged_int {
+    static_assert(min_v < max_v);
 public:
   using value_type =
     typename detail::value_type<
