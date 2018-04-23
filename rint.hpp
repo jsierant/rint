@@ -36,6 +36,11 @@ static void verify_range(Val val, char const* msg) {
   }
 }
 
+template<typename T1, typename T2>
+constexpr bool same_sign() {
+  return std::is_signed<T1>::value == std::is_signed<T2>::value;
+}
+
 }
 
 template<auto min_v, auto max_v>
@@ -72,10 +77,18 @@ public:
 
   template<auto min, auto max>
   inline bool operator<(ranged_int<min, max> const& rhs) const {
+    static_assert(
+      detail::same_sign<value_type,
+                        typename ranged_int<min, max>::value_type>(),
+      "Comparision of values with the same sign is alowed");
     return value < rhs.value;
   }
   template<auto min, auto max>
   inline bool operator>(ranged_int<min, max> const& rhs) const {
+    static_assert(
+      detail::same_sign<value_type,
+                        typename ranged_int<min, max>::value_type>(),
+      "Comparision of values with the same sign is alowed");
     return value > rhs.value;
   }
   template<auto min, auto max>
@@ -88,6 +101,10 @@ public:
   }
   template<auto min, auto max>
   inline bool operator==(ranged_int<min, max> const& rhs) const {
+    static_assert(
+      detail::same_sign<value_type,
+                        typename ranged_int<min, max>::value_type>(),
+      "Comparision of values with the same sign is alowed");
     return value == rhs.value;
   }
   template<auto min, auto max>
