@@ -2,31 +2,62 @@
 #include <limits>
 #include <cstdint>
 #include <stdexcept>
+#include <tuple>
 
 namespace rint {
 namespace detail {
 
-template<auto min, auto max, typename T>
-constexpr bool in_range() {
-  return std::numeric_limits<T>::min() <= min
-    && std::numeric_limits<T>::max() >= max;
-}
+struct none {};
 
-template<typename T, bool = false> struct fwd { using type = void; };
-template<typename T> struct fwd<T, true> { using type = T; };
-
-template<auto min, auto max, typename t, typename... types>
-struct value_type { using type = t; };
-
-template<auto min, auto max, typename head, typename... candidates>
-struct value_type<min, max, void, head, candidates...> {
-  using type = typename value_type<min, max,
-    typename fwd<head, in_range<min, max, head>()>::type,
-    candidates...>::type;
+template<auto min, auto max> struct range_signed {
+  template<typename T> constexpr static bool match() {
+    return std::numeric_limits<T>::min() <= min
+      && std::numeric_limits<T>::max() >= max;
+  }
 };
 
-template<auto min, auto max>
-struct value_type<min, max, void> { };
+template<auto min, auto max> struct range_unsigned {
+  template<typename T> constexpr static bool match() {
+    return std::numeric_limits<T>::max() >= max;
+  }
+};
+
+template<typename pred, bool, typename matching, typename... candidates>
+struct find_type_impl { };
+
+template<typename pred, typename matching, typename head, typename... tail>
+struct find_type_impl<pred, false, matching, head, tail...>
+  : find_type_impl<pred, pred::template match<head>(), head, tail...> {};
+
+template<typename pred, typename matching>
+struct find_type_impl<pred, false, matching> { using type = none; };
+
+template<typename pred, typename matching, typename... candidates>
+struct find_type_impl<pred, true, matching, candidates...> {
+  using type = matching;
+};
+
+template<typename pred, typename head, typename... tail> struct find_type
+  : find_type_impl<pred, pred::template match<head>(), head, tail...> { };
+
+template<auto min, auto max, bool is_signed,
+         typename sign_candidates, typename unsigned_candidates>
+struct value_type_impl {};
+
+template<auto min, auto max, typename unsigned_cont, typename... candidates>
+struct value_type_impl<min, max, true, std::tuple<candidates...>, unsigned_cont>
+  : find_type<range_signed<min, max>, candidates...>{
+};
+
+template<auto min, auto max, typename signed_cont, typename... candidates>
+struct value_type_impl<min, max, false, signed_cont, std::tuple<candidates...>>
+  : find_type<range_unsigned<min, max>, candidates...>{
+};
+
+template<auto min, auto max,
+         typename sign_candidates, typename unsigned_candidates>
+struct value_type
+  : value_type_impl<min, max, (min<0), sign_candidates, unsigned_candidates> {};
 
 template<typename R, typename Val>
 static void verify_range(Val val, char const* msg) {
@@ -45,15 +76,15 @@ constexpr bool same_sign() {
 
 template<auto min_v, auto max_v>
 class ranged_int {
-    static_assert(min_v < max_v);
 public:
   using value_type =
     typename detail::value_type<
-      min_v, max_v, void,
-      std::uint8_t, std::int8_t,
-      std::uint16_t, std::int16_t,
-      std::uint32_t, std::int32_t
+      min_v, max_v,
+      std::tuple<std::int8_t, std::int16_t, std::int32_t>,
+      std::tuple<std::uint8_t, std::uint16_t, std::uint32_t>
     >::type;
+  static_assert(!std::is_same<value_type, detail::none>::value,
+    "Unable to detect the value type for given range!");
 
   static constexpr value_type min() { return min_v; }
   static constexpr value_type max() { return max_v; }
@@ -106,7 +137,7 @@ public:
       detail::same_sign<value_type,
                         typename ranged_int<min, max>::value_type>(),
       "Comparision of values with the same sign is alowed");
-    return value == rhs.value;
+    return value == *rhs;
   }
   template<auto min, auto max>
   inline bool operator!=(ranged_int<min, max> const& rhs) const {
