@@ -61,16 +61,31 @@ go_bandit([]{
     });
   });
 
-  describe("equal comparision", []() {
+  describe("equality comparision", []() {
     it("two rint shall be equal", []{
       AssertThat((ranged_int<0, 30>{1}), Equals((ranged_int<0, 30>{1})));
       AssertThat((ranged_int<0, 30>{1}), Equals((ranged_int<0, 40>{1})));
     });
     it("two rint shall not be equal", []{
-      AssertThat((ranged_int<0, 30>{1}), 
+      AssertThat((ranged_int<0, 30>{1}),
                  Is().Not().EqualTo((ranged_int<0, 30>{2})));
-      AssertThat((ranged_int<0, 30>{1}), 
+      AssertThat((ranged_int<0, 30>{1}),
                  Is().Not().EqualTo((ranged_int<0, 40>{2})));
+    });
+  });
+
+  describe("comparision", []() {
+    it("greater", []{
+      AssertThat((ranged_int<0, 30>{2}),
+                 IsGreaterThan((ranged_int<0, 30>{1})));
+      AssertThat((ranged_int<0, 30>{2}),
+                 IsGreaterThan((ranged_int<0, 40>{1})));
+    });
+    it("less", []{
+      AssertThat((ranged_int<0, 30>{1}),
+                 IsLessThan((ranged_int<0, 30>{2})));
+      AssertThat((ranged_int<0, 30>{1}),
+                 IsLessThan((ranged_int<0, 40>{2})));
     });
   });
 });

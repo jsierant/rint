@@ -113,7 +113,7 @@ public:
       detail::same_sign<value_type,
                         typename ranged_int<min, max>::value_type>(),
       "Comparision of values with the same sign is alowed");
-    return value < rhs.value;
+    return value < *rhs;
   }
   template<auto min, auto max>
   inline bool operator>(ranged_int<min, max> const& rhs) const {
@@ -121,7 +121,7 @@ public:
       detail::same_sign<value_type,
                         typename ranged_int<min, max>::value_type>(),
       "Comparision of values with the same sign is alowed");
-    return value > rhs.value;
+    return value > *rhs;
   }
   template<auto min, auto max>
   inline bool operator<=(ranged_int<min, max> const& rhs) const {
