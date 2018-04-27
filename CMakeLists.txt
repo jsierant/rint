@@ -3,7 +3,6 @@ project(rint)
 
 include_directories(${CMAKE_SOURCE_DIR})
 
-add_compile_options(-std=c++17)
+add_compile_options(-std=c++17 -Wall -Wextra -pedantic)
 
 add_subdirectory(tests)
-add_executable(rinitmain main.cpp)

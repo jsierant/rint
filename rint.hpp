@@ -9,72 +9,192 @@ namespace detail {
 
 struct none {};
 
-template<auto min, auto max> struct range_signed {
-  template<typename T> constexpr static bool match() {
-    return std::numeric_limits<T>::min() <= min
-      && std::numeric_limits<T>::max() >= max;
+template<
+  auto min,
+  auto max
+>
+struct range {
+  template<typename verifying_t>
+  constexpr static bool match() {
+    if constexpr (min < 0) {
+      return std::numeric_limits<verifying_t>::min() <= min
+        && std::numeric_limits<verifying_t>::max() >= max;
+    }
+    return std::numeric_limits<verifying_t>::max() >= max;
   }
 };
 
-template<auto min, auto max> struct range_unsigned {
-  template<typename T> constexpr static bool match() {
-    return std::numeric_limits<T>::max() >= max;
-  }
-};
-
-template<typename pred, bool, typename matching, typename... candidates>
+template<
+  typename predicate_t,
+  bool,
+  typename verifying_t,
+  typename... candidates_t
+>
 struct find_type_impl { };
 
-template<typename pred, typename matching, typename head, typename... tail>
-struct find_type_impl<pred, false, matching, head, tail...>
-  : find_type_impl<pred, pred::template match<head>(), head, tail...> {};
+template<
+  typename predicate_t,
+  typename verifying_t,
+  typename next_candidate_t,
+  typename... remining_candidates_t
+>
+struct find_type_impl<
+  predicate_t,
+  false,
+  verifying_t,
+  next_candidate_t,
+  remining_candidates_t...
+>
+  : find_type_impl<
+      predicate_t,
+      predicate_t::template match<next_candidate_t>(),
+      next_candidate_t,
+      remining_candidates_t...
+    >
+{ };
 
-template<typename pred, typename matching>
-struct find_type_impl<pred, false, matching> { using type = none; };
-
-template<typename pred, typename matching, typename... candidates>
-struct find_type_impl<pred, true, matching, candidates...> {
-  using type = matching;
+template<
+  typename predicate_t,
+  typename verifying_t
+>
+struct find_type_impl<
+  predicate_t,
+  false,
+  verifying_t
+> {
+  using type = none;
 };
 
-template<typename pred, typename head, typename... tail> struct find_type
-  : find_type_impl<pred, pred::template match<head>(), head, tail...> { };
-
-template<auto min, auto max, bool is_signed,
-         typename sign_candidates, typename unsigned_candidates>
-struct value_type_impl {};
-
-template<auto min, auto max, typename unsigned_cont, typename... candidates>
-struct value_type_impl<min, max, true, std::tuple<candidates...>, unsigned_cont>
-  : find_type<range_signed<min, max>, candidates...>{
+template<
+  typename predicate_t,
+  typename verifying_t,
+  typename... candidates_t
+>
+struct find_type_impl<
+  predicate_t,
+  true,
+  verifying_t,
+  candidates_t...
+> {
+  using type = verifying_t;
 };
 
-template<auto min, auto max, typename signed_cont, typename... candidates>
-struct value_type_impl<min, max, false, signed_cont, std::tuple<candidates...>>
-  : find_type<range_unsigned<min, max>, candidates...>{
-};
+template<
+  typename pred,
+  typename head,
+  typename... tail
+>
+struct find_type
+  : find_type_impl<pred, pred::template match<head>(),
+                   head, tail...>
+{ };
 
-template<auto min, auto max,
-         typename sign_candidates, typename unsigned_candidates>
+template<
+  auto min, auto max, bool is_signed,
+  typename sign_candidates,
+  typename unsigned_candidates
+>
+struct value_type_impl { };
+
+template<
+  auto min_tv, auto max_tv,
+  typename unsigned_candidate_container_t,
+  typename... signed_candidates_t
+>
+struct value_type_impl<
+  min_tv, max_tv, true,
+  std::tuple<signed_candidates_t...>,
+  unsigned_candidate_container_t
+>
+  : find_type<
+      range<min_tv, max_tv>,
+      signed_candidates_t...
+    >
+{ };
+
+template<
+  auto min_tv, auto max_tv,
+  typename signed_candidate_container_t,
+  typename... unsigned_candidates_t
+>
+struct value_type_impl<
+  min_tv, max_tv, false,
+  signed_candidate_container_t,
+  std::tuple<unsigned_candidates_t...>
+>
+  : find_type<
+      range<min_tv, max_tv>,
+      unsigned_candidates_t...
+    >
+{ };
+
+template<
+  auto min_tv, auto max_tv,
+  typename signed_candidate_container_t,
+  typename unsigned_candidate_container_t>
 struct value_type
-  : value_type_impl<min, max, (min<0), sign_candidates, unsigned_candidates> {};
+  : value_type_impl<
+      min_tv, max_tv, (min_tv < 0),
+      signed_candidate_container_t,
+      unsigned_candidate_container_t
+    >
+{ };
 
-template<typename R, typename Val>
-static void verify_range(Val val, char const* msg) {
-  if(std::numeric_limits<R>::min() > val
-    || std::numeric_limits<R>::max() < val) {
+template<
+  typename t1_t,
+  typename t2_t
+>
+constexpr bool same_sign() {
+  return std::is_signed<t1_t>::value
+    == std::is_signed<t2_t>::value;
+}
+
+template<
+  typename subject_t,
+  typename value_t
+>
+std::enable_if_t<same_sign<subject_t, value_t>()>
+verify_range(value_t value, char const* msg) {
+  if(std::numeric_limits<subject_t>::min() > value
+      || std::numeric_limits<subject_t>::max() < value) {
     throw std::out_of_range(msg);
   }
 }
 
-template<typename T1, typename T2>
-constexpr bool same_sign() {
-  return std::is_signed<T1>::value == std::is_signed<T2>::value;
+template<
+  typename subject_t,
+  typename value_t
+>
+std::enable_if_t<
+  std::is_unsigned<subject_t>::value
+    && std::is_signed<value_t>::value>
+verify_range(value_t value, char const* msg) {
+  if(value < 0
+     || std::numeric_limits<subject_t>::max()
+        < static_cast<std::uint32_t>(value)) {
+    throw std::out_of_range(msg);
+  }
+}
+
+template<
+  typename subject_t,
+  typename value_t
+>
+std::enable_if_t<
+  std::is_signed<subject_t>::value
+  && std::is_unsigned<value_t>::value>
+verify_range(value_t value, char const* msg) {
+  if(static_cast<std::uint32_t>(
+      std::numeric_limits<subject_t>::max()) < value) {
+      throw std::out_of_range(msg);
+  }
 }
 
 }
 
-template<auto min_v, auto max_v>
+template<
+  auto min_v, auto max_v
+>
 class ranged_int {
 public:
   using value_type =
@@ -89,8 +209,8 @@ public:
   static constexpr value_type min() { return min_v; }
   static constexpr value_type max() { return max_v; }
 
-  template<typename Val>
-  explicit ranged_int(Val val)
+  template<typename value_t>
+  explicit ranged_int(value_t val)
     : value(static_cast<value_type>(val)) {
       detail::verify_range<value_type>(val, "rint: failed to initialize");
   }

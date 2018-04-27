@@ -18,6 +18,11 @@ void expect_value_type_for_limits() {
   expect_value_type<std::numeric_limits<E>::min(),
     std::numeric_limits<E>::max(), E>();
 }
+template<typename T>
+auto make_ranged_int_with_min() {
+  return ranged_int<std::numeric_limits<T>::min(), 0>
+    {std::numeric_limits<T>::min()};
+}
 
 go_bandit([]{
   describe("selecting type", []{
@@ -74,7 +79,7 @@ go_bandit([]{
     });
   });
 
-  describe("comparision", []() {
+  describe("comparision operator", []() {
     it("greater", []{
       AssertThat((ranged_int<0, 30>{2}),
                  IsGreaterThan((ranged_int<0, 30>{1})));
@@ -86,6 +91,27 @@ go_bandit([]{
                  IsLessThan((ranged_int<0, 30>{2})));
       AssertThat((ranged_int<0, 30>{1}),
                  IsLessThan((ranged_int<0, 40>{2})));
+    });
+  });
+
+  describe("cast function", []() {
+    it("shall throw when converting negative val to unsigned", []{
+      AssertThrows(std::out_of_range,
+        (to_integral<std::uint8_t>(ranged_int<-10, 30>{-2})));
+      AssertThrows(std::out_of_range,
+        (to_integral<std::uint16_t>(ranged_int<-10, 30>{-2})));
+      AssertThrows(std::out_of_range,
+        (to_integral<std::uint32_t>(ranged_int<-10, 30>{-2})));
+    });
+    it("shall throw when converting out of range value", []{
+      AssertThrows(std::out_of_range,
+        (to_integral<std::int8_t>(make_ranged_int_with_min<std::int32_t>())));
+      AssertThrows(std::out_of_range,
+        (to_integral<std::int16_t>(make_ranged_int_with_min<std::int32_t>())));
+      AssertThrows(std::out_of_range,
+        (to_integral<std::int16_t>(
+          ranged_int<0, std::numeric_limits<std::uint16_t>::max() >{
+            std::numeric_limits<std::uint16_t>::max()})));
     });
   });
 });
